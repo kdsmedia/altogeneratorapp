@@ -10,7 +10,8 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signInAnonymously, 
-  updateProfile 
+  updateProfile,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -18,6 +19,7 @@ import {
   addDoc, 
   setDoc,
   getDoc,
+  getDocs,
   updateDoc,
   deleteDoc,
   doc,
@@ -55,6 +57,7 @@ export {
   googleProvider, 
   signInWithPopup, 
   signOut, 
+  sendPasswordResetEmail,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -64,6 +67,7 @@ export {
   addDoc,
   setDoc,
   getDoc,
+  getDocs,
   updateDoc,
   deleteDoc,
   doc,

@@ -16,9 +16,12 @@ import {
   signInWithEmailAndPassword,
   signInAnonymously,
   updateProfile,
+  sendPasswordResetEmail,
   collection,
   addDoc,
   setDoc,
+  getDoc,
+  getDocs,
   updateDoc,
   deleteDoc,
   doc,
@@ -310,6 +313,22 @@ function AppContent() {
     phone: '',
     referral: ''
   });
+  const [customAlert, setCustomAlert] = useState<{ show: boolean, message: string, title?: string } | null>(null);
+
+  const showAlert = (message: string, title: string = 'NOTIFIKASI') => {
+    setCustomAlert({ show: true, message, title });
+  };
+
+  const [customConfirm, setCustomConfirm] = useState<{ 
+    show: boolean, 
+    message: string, 
+    title?: string, 
+    onConfirm: () => void 
+  } | null>(null);
+
+  const showConfirm = (message: string, onConfirm: () => void, title: string = 'KONFIRMASI') => {
+    setCustomConfirm({ show: true, message, title, onConfirm });
+  };
 
   const isAdmin = user && !user.isAnonymous && user.email === 'appsidhanie@gmail.com';
   const isSubscribed = userData?.subscription?.isActive || isAdmin;
@@ -335,6 +354,8 @@ function AppContent() {
           isMaintenance: false
         });
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/global');
     });
 
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -346,61 +367,72 @@ function AppContent() {
         if (currentUser.email === 'appsidhanie@gmail.com') {
           setActiveTab('Admin');
         }
-        
-        // Fetch user data from Firestore
-        const userRef = doc(db, 'users', currentUser.uid);
-        onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            
-            // Check for subscription expiry
-            if (data.subscription?.isActive && data.subscription?.expiryDate) {
-              const now = new Date();
-              const expiry = new Date(data.subscription.expiryDate);
-              if (now > expiry) {
-                updateDoc(userRef, {
-                  'subscription.isActive': false
-                });
-                alert('Masa aktif paket Anda telah habis. Silakan perpanjang atau beli paket baru.');
-              }
-            }
-            
-            setUserData(data);
-            if (!data.referralCode) {
-              updateDoc(userRef, { referralCode: generateReferralCode() });
-            }
-            // Ensure admin role is set if email matches
-            if (currentUser.email === 'appsidhanie@gmail.com' && data.role !== 'admin') {
-              updateDoc(userRef, { role: 'admin' });
-            }
-          } else {
-            // Create user doc if not exists (e.g. first time Google login)
-            setDoc(userRef, {
-              uid: currentUser.uid,
-              email: currentUser.email,
-              fullName: currentUser.displayName || 'User ALTO',
-              balance: 0,
-              inviteCount: 0,
-              lastCheckInDate: '',
-              sponsorVisitCount: 0,
-              lastSponsorVisitDate: '',
-              referralCode: generateReferralCode(),
-              subscription: { isActive: false },
-              isBlocked: false,
-              role: currentUser.email === 'appsidhanie@gmail.com' ? 'admin' : 'user',
-              createdAt: serverTimestamp()
-            });
-          }
-        });
       } else {
         setUserData(null);
       }
     });
+
     return () => {
       unsubscribeSettings();
       unsubscribeAuth();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || user.isAnonymous) {
+      setUserData(null);
+      return;
+    }
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        // Check for subscription expiry
+        if (data.subscription?.isActive && data.subscription?.expiryDate) {
+          const now = new Date();
+          const expiry = new Date(data.subscription.expiryDate);
+          if (now > expiry) {
+            updateDoc(userRef, {
+              'subscription.isActive': false
+            });
+            showAlert('Masa aktif paket Anda telah habis. Silakan perpanjang atau beli paket baru.');
+          }
+        }
+        
+        setUserData(data);
+        if (!data.referralCode) {
+          updateDoc(userRef, { referralCode: generateReferralCode() });
+        }
+        // Ensure admin role is set if email matches
+        if (user.email === 'appsidhanie@gmail.com' && data.role !== 'admin') {
+          updateDoc(userRef, { role: 'admin' });
+        }
+      } else {
+        // Create user doc if not exists (e.g. first time Google login)
+        setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          fullName: user.displayName || 'User ALTO',
+          balance: 0,
+          inviteCount: 0,
+          lastCheckInDate: '',
+          sponsorVisitCount: 0,
+          lastSponsorVisitDate: '',
+          referralCode: generateReferralCode(),
+          subscription: { isActive: false },
+          isBlocked: false,
+          role: user.email === 'appsidhanie@gmail.com' ? 'admin' : 'user',
+          createdAt: serverTimestamp()
+        });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+    });
+
+    return () => unsubscribeUser();
+  }, [user]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -412,10 +444,35 @@ function AppContent() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    let email = authFormData.email;
+    
+    // If it's a phone number (digits and optional + at start), try to find the email
+    if (/^\+?\d+$/.test(email)) {
+      try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('phone', '==', email));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          email = querySnapshot.docs[0].data().email;
+        } else {
+          showAlert('Nomor ponsel tidak terdaftar. Silakan gunakan email atau daftar akun baru.');
+          return;
+        }
+      } catch (error) {
+        console.error('Phone lookup error:', error);
+      }
+    }
+
     try {
-      await signInWithEmailAndPassword(auth, authFormData.email, authFormData.password);
+      await signInWithEmailAndPassword(auth, email, authFormData.password);
     } catch (error: any) {
-      alert('Login gagal: ' + error.message);
+      let errorMessage = error.message;
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'Akun tidak ditemukan. Silakan daftar terlebih dahulu.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Password salah. Silakan coba lagi.';
+      }
+      showAlert('Login gagal: ' + errorMessage);
     }
   };
 
@@ -439,7 +496,7 @@ function AppContent() {
       });
       
     } catch (error: any) {
-      alert('Registrasi gagal: ' + error.message);
+      showAlert('Registrasi gagal: ' + error.message);
     }
   };
 
@@ -449,6 +506,38 @@ function AppContent() {
       setShowAuthModal(false);
     } catch (error) {
       console.error('Guest login error:', error);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!authFormData.email) {
+      showAlert('Silakan masukkan email atau nomor ponsel Anda terlebih dahulu.');
+      return;
+    }
+    
+    let email = authFormData.email;
+    // If it's a phone number, try to find the email
+    if (/^\+?\d+$/.test(email)) {
+      try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('phone', '==', email));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          email = querySnapshot.docs[0].data().email;
+        } else {
+          showAlert('Nomor ponsel tidak terdaftar.');
+          return;
+        }
+      } catch (error) {
+        console.error('Phone lookup error:', error);
+      }
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showAlert('Email reset password telah dikirim ke ' + email);
+    } catch (error: any) {
+      showAlert('Gagal mengirim email reset: ' + error.message);
     }
   };
 
@@ -471,7 +560,7 @@ function AppContent() {
 
   const handleTabChange = (tab: string) => {
     if (tab === 'Admin' && !isAdmin) {
-      alert('Akses ditolak. Hanya admin yang bisa mengakses panel ini.');
+      showAlert('Akses ditolak. Hanya admin yang bisa mengakses panel ini.');
       return;
     }
     if (checkAccess(tab)) {
@@ -516,26 +605,27 @@ function AppContent() {
   const handleUpdateUser = async (userId: string, data: any) => {
     try {
       await updateDoc(doc(db, 'users', userId), data);
-      alert('Data user berhasil diperbarui!');
+      showAlert('Data user berhasil diperbarui!');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus user ini?')) return;
-    try {
-      await deleteDoc(doc(db, 'users', userId));
-      alert('User berhasil dihapus!');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
-    }
+    showConfirm('Apakah Anda yakin ingin menghapus user ini?', async () => {
+      try {
+        await deleteDoc(doc(db, 'users', userId));
+        showAlert('User berhasil dihapus!');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
+      }
+    });
   };
 
   const handleUpdateSettings = async (data: any) => {
     try {
       await updateDoc(doc(db, 'settings', 'global'), data);
-      alert('Pengaturan berhasil diperbarui!');
+      showAlert('Pengaturan berhasil diperbarui!');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'settings/global');
     }
@@ -561,7 +651,7 @@ function AppContent() {
         });
       }
       
-      alert(`Transaksi berhasil di${status === 'confirmed' ? 'terima' : 'tolak'}!`);
+      showAlert(`Transaksi berhasil di${status === 'confirmed' ? 'terima' : 'tolak'}!`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `transactions/${txId}`);
     }
@@ -582,11 +672,11 @@ function AppContent() {
 
   const handleSubmitTransaction = async () => {
     if (!user) {
-      alert('Anda harus login terlebih dahulu.');
+      showAlert('Anda harus login terlebih dahulu.');
       return;
     }
     if (!formData.senderBank || !formData.ownerName || !formData.accountNumber) {
-      alert('Harap isi semua data pengirim.');
+      showAlert('Harap isi semua data pengirim.');
       return;
     }
 
@@ -754,7 +844,7 @@ function AppContent() {
     }
     
     if (!isSubscribed) {
-      alert('Fitur Video memerlukan langganan paket VIP. Silakan beli paket di menu Paket.');
+      showAlert('Fitur Video memerlukan langganan paket VIP. Silakan beli paket di menu Paket.');
       setActiveTab('Paket');
       return;
     }
@@ -1017,13 +1107,13 @@ function AppContent() {
                 )}
                 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-4">Email</label>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-4">Email / Nomor Ponsel</label>
                   <div className="relative">
                     <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                     <input 
-                      type="email"
+                      type="text"
                       required
-                      placeholder="Masukkan email Anda"
+                      placeholder="Masukkan email atau nomor ponsel"
                       className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-indigo-500/50 transition-all"
                       value={authFormData.email}
                       onChange={(e) => setAuthFormData({...authFormData, email: e.target.value})}
@@ -1044,6 +1134,17 @@ function AppContent() {
                       onChange={(e) => setAuthFormData({...authFormData, password: e.target.value})}
                     />
                   </div>
+                  {authMode === 'login' && (
+                    <div className="flex justify-end px-2">
+                      <button 
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest"
+                      >
+                        Lupa Password?
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {authMode === 'register' && (
@@ -2055,7 +2156,7 @@ function AppContent() {
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(userData.referralCode);
-                      alert('Kode referral berhasil disalin!');
+                      showAlert('Kode referral berhasil disalin!');
                     }}
                     className="p-3 glass rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 text-xs font-bold"
                   >
@@ -2392,6 +2493,107 @@ function AppContent() {
           </button>
         ))}
       </nav>
+
+      {/* Custom Alert Modal */}
+      <AnimatePresence>
+        {customAlert && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCustomAlert(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm glass rounded-[2.5rem] p-8 border border-white/10 overflow-hidden text-center"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 gradient-bg" />
+              
+              <div className="flex flex-col items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <AlertTriangle className="w-8 h-8" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black tracking-tighter uppercase">
+                    {customAlert.title || 'NOTIFIKASI'}
+                  </h2>
+                </div>
+              </div>
+
+              <p className="text-sm text-zinc-400 leading-relaxed mb-8">
+                {customAlert.message}
+              </p>
+
+              <button 
+                onClick={() => setCustomAlert(null)}
+                className="w-full py-4 gradient-bg rounded-2xl font-bold text-sm tracking-widest hover:opacity-90 transition-all shadow-[0_10px_20px_rgba(129,140,248,0.3)]"
+              >
+                MENGERTI
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Confirm Modal */}
+      <AnimatePresence>
+        {customConfirm && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCustomConfirm(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm glass rounded-[2.5rem] p-8 border border-white/10 overflow-hidden text-center"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
+              
+              <div className="flex flex-col items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <AlertTriangle className="w-8 h-8" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black tracking-tighter uppercase">
+                    {customConfirm.title || 'KONFIRMASI'}
+                  </h2>
+                </div>
+              </div>
+
+              <p className="text-sm text-zinc-400 leading-relaxed mb-8">
+                {customConfirm.message}
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => setCustomConfirm(null)}
+                  className="py-4 glass rounded-2xl font-bold text-sm tracking-widest hover:bg-white/5 transition-all"
+                >
+                  BATAL
+                </button>
+                <button 
+                  onClick={() => {
+                    customConfirm.onConfirm();
+                    setCustomConfirm(null);
+                  }}
+                  className="py-4 bg-red-500 rounded-2xl font-bold text-sm tracking-widest hover:bg-red-600 transition-all shadow-[0_10px_20px_rgba(239,68,68,0.3)]"
+                >
+                  YA, LANJUT
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Desktop Sidebar Navigation (Floating) */}
       <div className="hidden lg:flex fixed left-10 top-1/2 -translate-y-1/2 flex-col gap-10 z-50 bg-transparent border-none">
