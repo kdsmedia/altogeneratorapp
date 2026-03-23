@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: transactions
+    // Document ID: auto-generated
+    // Fields:
+    //   - packageId: string (required)
+    //   - packageName: string (required)
+    //   - price: number (required, positive)
+    //   - duration: string (required)
+    //   - paymentMethod: string (required, enum: ['dana', 'bank', 'qris'])
+    //   - senderBank: string (required, max 50 chars)
+    //   - ownerName: string (required, max 100 chars)
+    //   - accountNumber: string (required, max 50 chars)
+    //   - status: string (required, enum: ['pending', 'confirmed', 'rejected'])
+    //   - createdAt: string (required, ISO 8601)
+    //   - userId: string (required, matches auth.uid)
+    //   - userEmail: string (optional, matches auth.token.email)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+              request.auth.token.email == "appsidhanie@gmail.com");
+    }
+
+    function isNotBlocked() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() &&
+             (!exists(userPath) || get(userPath).data.isBlocked == false);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.size() < 100 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.size() < 50 &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'fullName', 'phone', 'referral', 'referralCode', 'balance', 'inviteCount', 'lastCheckInDate', 'sponsorVisitCount', 'lastSponsorVisitDate', 'subscription', 'isBlocked', 'role', 'createdAt']) &&
+             data.uid is string && data.uid.size() < 128 &&
+             data.email is string && isValidEmail(data.email) &&
+             (!('fullName' in data) || (data.fullName is string && data.fullName.size() < 100)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 20)) &&
+             (!('referralCode' in data) || (data.referralCode is string && data.referralCode.size() < 20)) &&
+             data.balance is number && data.balance >= 0 &&
+             data.role in ['admin', 'user'];
+    }
+
+    function isValidSettings(data) {
+      return hasOnlyAllowedFields(['whatsappUrl', 'telegramUrl', 'sponsorUrl', 'geminiApiKey', 'dana', 'bank', 'qrisUrl', 'isMaintenance']) &&
+             (!('whatsappUrl' in data) || data.whatsappUrl is string) &&
+             (!('telegramUrl' in data) || data.telegramUrl is string) &&
+             (!('sponsorUrl' in data) || data.sponsorUrl is string) &&
+             (!('geminiApiKey' in data) || data.geminiApiKey is string) &&
+             (!('isMaintenance' in data) || data.isMaintenance is bool);
+    }
+
+    function isValidTransaction(data) {
+      return hasOnlyAllowedFields(['packageId', 'packageName', 'price', 'duration', 'paymentMethod', 'senderBank', 'ownerName', 'accountNumber', 'status', 'createdAt', 'userId', 'userEmail']) &&
+             data.packageId is string && data.packageId.size() > 0 && data.packageId.size() < 50 &&
+             data.packageName is string && data.packageName.size() > 0 && data.packageName.size() < 100 &&
+             data.price is number && data.price > 0 &&
+             data.duration is string && data.duration.size() > 0 && data.duration.size() < 50 &&
+             data.paymentMethod in ['dana', 'bank', 'qris'] &&
+             data.senderBank is string && data.senderBank.size() > 0 && data.senderBank.size() < 50 &&
+             data.ownerName is string && data.ownerName.size() > 0 && data.ownerName.size() < 100 &&
+             data.accountNumber is string && data.accountNumber.size() > 0 && data.accountNumber.size() < 50 &&
+             data.status in ['pending', 'confirmed', 'rejected'] &&
+             isValidDateString(data.createdAt) &&
+             data.userId == request.auth.uid &&
+             (!('userEmail' in data) || (data.userEmail == request.auth.token.email && isValidEmail(data.userEmail)));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /settings/global {
+      allow read: if true; // Everyone needs to check maintenance mode
+      allow write: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      // Users can read their own transactions, admins can read all
+      allow read: if isAuthenticated() && isNotBlocked() && (isOwner(resource.data.userId) || isAdmin());
+      
+      // Users can create transactions with 'pending' status
+      allow create: if isAuthenticated() && isNotBlocked() &&
+                      isValidTransaction(request.resource.data) && 
+                      request.resource.data.status == 'pending';
+      
+      // Admins can update status, users cannot update anything once submitted
+      allow update: if isAuthenticated() && 
+                      isAdmin() && 
+                      isValidTransaction(request.resource.data);
+      
+      // Admins can delete transactions
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      
+      allow create: if isAuthenticated() && isOwner(userId) && 
+                      isValidUser(request.resource.data) &&
+                      request.resource.data.role == 'user' &&
+                      request.resource.data.balance == 0;
+                      
+      allow update: if isAuthenticated() && (
+                      (isOwner(userId) && isNotBlocked() &&
+                       isValidUser(request.resource.data) &&
+                       request.resource.data.role == resource.data.role && // Prevent role escalation
+                       (request.resource.data.balance == resource.data.balance || // No change
+                        (request.resource.data.balance == resource.data.balance + 50 && request.resource.data.lastCheckInDate != resource.data.lastCheckInDate) || // Check-in
+                        (request.resource.data.balance == resource.data.balance + 100 && request.resource.data.sponsorVisitCount == resource.data.sponsorVisitCount + 1) || // Sponsor Visit
+                        (request.resource.data.balance == resource.data.balance + 500 && request.resource.data.inviteCount == resource.data.inviteCount + 1) // Invite
+                       )) ||
+                      isAdmin()
+                    );
+                    
+      allow delete: if isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

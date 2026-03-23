@@ -1,0 +1,5 @@
+{
+  "name": "ALTOGEN",
+  "description": "AI-powered video generator that creates cinematic videos from images and text prompts.",
+  "requestFramePermissions": []
+}

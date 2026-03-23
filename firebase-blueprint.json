@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Metadata for a registered user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique ID of the user." },
+        "email": { "type": "string", "description": "The email address of the user." },
+        "displayName": { "type": "string", "description": "The display name of the user." },
+        "balance": { "type": "number", "description": "The current balance of the user." },
+        "inviteCount": { "type": "number", "description": "The number of friends invited." },
+        "lastCheckInDate": { "type": "string", "description": "The last date the user checked in (YYYY-MM-DD)." },
+        "sponsorVisitCount": { "type": "number", "description": "The number of sponsor visits today." },
+        "lastSponsorVisitDate": { "type": "string", "description": "The last date the user visited a sponsor (YYYY-MM-DD)." },
+        "referralCode": { "type": "string", "description": "The referral code of the user." },
+        "subscription": {
+          "type": "object",
+          "properties": {
+            "active": { "type": "boolean" },
+            "expiryDate": { "type": "string", "format": "date-time" },
+            "packageId": { "type": "string" }
+          }
+        },
+        "isBlocked": { "type": "boolean", "description": "Whether the user is blocked from the app." },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "The role of the user." }
+      },
+      "required": ["uid", "email", "balance", "role"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings managed by the admin.",
+      "type": "object",
+      "properties": {
+        "whatsappUrl": { "type": "string", "description": "The URL for the WhatsApp group." },
+        "telegramUrl": { "type": "string", "description": "The URL for the Telegram group." },
+        "sponsorUrl": { "type": "string", "description": "The URL for the sponsor site." },
+        "geminiApiKey": { "type": "string", "description": "The API key for Gemini services." },
+        "dana": {
+          "type": "object",
+          "properties": {
+            "ownerName": { "type": "string" },
+            "accountNumber": { "type": "string" }
+          }
+        },
+        "bank": {
+          "type": "object",
+          "properties": {
+            "bankName": { "type": "string" },
+            "ownerName": { "type": "string" },
+            "accountNumber": { "type": "string" }
+          }
+        },
+        "qrisUrl": { "type": "string", "description": "The URL of the QRIS image." },
+        "isMaintenance": { "type": "boolean", "description": "Whether the app is in maintenance mode." }
+      }
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A record of a VIP package purchase request.",
+      "type": "object",
+      "properties": {
+        "packageId": { "type": "string", "description": "The ID of the selected package." },
+        "packageName": { "type": "string", "description": "The name of the selected package." },
+        "price": { "type": "number", "description": "The price of the package." },
+        "duration": { "type": "string", "description": "The duration of the package." },
+        "paymentMethod": { "type": "string", "enum": ["dana", "bank", "qris"], "description": "The chosen payment method." },
+        "senderBank": { "type": "string", "description": "The bank or e-wallet name of the sender." },
+        "ownerName": { "type": "string", "description": "The name of the account owner." },
+        "accountNumber": { "type": "string", "description": "The account or phone number of the sender." },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "rejected"], "description": "The current status of the transaction." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The ISO timestamp when the transaction was created." },
+        "userId": { "type": "string", "description": "The UID of the user who made the request." },
+        "userEmail": { "type": "string", "description": "The email of the user who made the request." }
+      },
+      "required": ["packageId", "packageName", "price", "duration", "paymentMethod", "senderBank", "ownerName", "accountNumber", "status", "createdAt", "userId"]
+    }
+  },
+  "firestore": {
+    "/users": {
+      "schema": "User",
+      "description": "Collection of all registered users."
+    },
+    "/settings": {
+      "schema": "Settings",
+      "description": "Global application settings."
+    },
+    "/transactions": {
+      "schema": "Transaction",
+      "description": "Collection of all VIP package purchase requests."
+    }
+  }
+}
