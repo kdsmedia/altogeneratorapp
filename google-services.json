@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "35517370141",
+    "project_id": "altoshop",
+    "storage_bucket": "altoshop.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:35517370141:android:ec8de985de09b86eecdbf4",
+        "android_client_info": {
+          "package_name": "com.altomedia.altogenapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "35517370141-q8oh1f25ilh6714sboqh9mqv766a22jc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTFq2Hj0rWM57I8x-oYh_brlks4RhmT9U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "35517370141-q8oh1f25ilh6714sboqh9mqv766a22jc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:35517370141:android:3e2715ab33e6ede0ecdbf4",
+        "android_client_info": {
+          "package_name": "com.altomedia.cashpopapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "35517370141-q8oh1f25ilh6714sboqh9mqv766a22jc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTFq2Hj0rWM57I8x-oYh_brlks4RhmT9U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "35517370141-q8oh1f25ilh6714sboqh9mqv766a22jc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,10 +1,10 @@
 {
-  "projectId": "altomedia-8f793",
-  "appId": "1:327513974065:web:adf2ecca7e88fbf591bc10",
-  "apiKey": "AIzaSyDBM_PPd7uEAyGg8d2ILQ1bTx3A6KKFjBk",
-  "authDomain": "altomedia-8f793.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-2566ba87-320a-4c41-9ed0-fd2149b2657b",
-  "storageBucket": "altomedia-8f793.firebasestorage.app",
-  "messagingSenderId": "327513974065",
-  "measurementId": ""
+  "projectId": "altoshop",
+  "appId": "1:35517370141:web:3c0cb81cd4ecc366ecdbf4",
+  "apiKey": "AIzaSyDWcHd1ZB_0b97VFHAvouOpQC9wMY4k5LE",
+  "authDomain": "altoshop.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "altoshop.firebasestorage.app",
+  "messagingSenderId": "35517370141",
+  "measurementId": "G-8FBX5LF7PZ"
 }
