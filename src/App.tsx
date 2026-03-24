@@ -1052,9 +1052,9 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Header */}
-      <header className="p-4 sm:p-6 flex justify-between items-center border-b border-white/5 sticky top-0 bg-black/80 backdrop-blur-md z-40 lg:pl-32">
+      <header className="p-3 sm:p-6 flex justify-between items-center border-b border-white/5 sticky top-0 bg-black/80 backdrop-blur-md z-40 lg:pl-32">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 gradient-bg rounded-lg sm:rounded-xl flex items-center justify-center overflow-hidden">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 gradient-bg rounded-lg sm:rounded-xl flex items-center justify-center overflow-hidden shrink-0">
             <img 
               src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiIddo8VSZa7d9W0n9JhMMSEXVhArh6LuYAqMzNvqZhyungEL7A-vxtPNblvEuNW9LfvdGjF1h4HLRchfinLaUaT9L9bNu-L29TZjksHnCqfP8yH_8V0sSwRaqM1m1yzzxzkQtjbPqLQSEnCwpNK7_Nc_189Xr8yFLeCbAnFf0xX7YeZFrl3r9sBIhVx4M/s500/15766.png" 
               alt="Logo" 
@@ -1062,12 +1062,12 @@ function AppContent() {
               referrerPolicy="no-referrer"
             />
           </div>
-          <span className="text-xl sm:text-2xl font-black tracking-tighter">ALTOGEN</span>
+          <span className="text-lg sm:text-2xl font-black tracking-tighter truncate max-w-[120px] sm:max-w-none">ALTOGEN</span>
         </div>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 glass rounded-full border border-white/10">
-            <Coins className="w-3.5 h-3.5 sm:w-4 h-4 text-amber-400" />
-            <span className="text-xs sm:text-sm font-bold text-zinc-300">Rp. {balance.toLocaleString('id-ID')}</span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 glass rounded-full border border-white/10 shrink-0">
+            <Coins className="w-3 h-3 sm:w-4 h-4 text-amber-400" />
+            <span className="text-[10px] sm:text-sm font-bold text-zinc-300">Rp. {balance.toLocaleString('id-ID')}</span>
           </div>
           <button className="p-1.5 sm:p-2 hover:bg-white/5 rounded-full transition-colors hidden sm:block">
             <Layers className="w-5 h-5 text-zinc-400" />
@@ -1093,7 +1093,7 @@ function AppContent() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md glass rounded-[2.5rem] p-8 border border-white/10 overflow-hidden"
+              className="relative w-full max-w-md glass rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 border border-white/10 overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 gradient-bg" />
               
@@ -1253,7 +1253,7 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      <main className="flex-1 flex flex-col lg:flex-row p-6 gap-6 overflow-hidden pb-24 lg:pb-6 lg:pl-32">
+      <main className="flex-1 flex flex-col lg:flex-row p-4 sm:p-6 gap-6 overflow-hidden pb-28 sm:pb-24 lg:pb-6 lg:pl-32">
         <AnimatePresence mode="wait">
           {activeTab === 'Video' && (
             <motion.div 
@@ -1361,12 +1361,12 @@ function AppContent() {
                 </div>
 
                 {/* Input Bar */}
-                <div className="glass rounded-[1.5rem] sm:rounded-[2rem] p-1.5 sm:p-2 flex items-center gap-1.5 sm:gap-2 shadow-2xl border border-white/5">
+                <div className="glass rounded-[1.25rem] sm:rounded-[2rem] p-1 sm:p-2 flex items-center gap-1 sm:gap-2 shadow-2xl border border-white/5">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors group shrink-0"
+                    className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors group shrink-0"
                   >
-                    <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 group-hover:text-indigo-400 transition-colors" />
+                    <Plus className="w-4 h-4 sm:w-6 sm:h-6 text-zinc-400 group-hover:text-indigo-400 transition-colors" />
                   </button>
                   <input 
                     type="file" 
@@ -1380,7 +1380,7 @@ function AppContent() {
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Describe motion..."
-                    className="flex-1 bg-transparent border-none focus:ring-0 text-white text-sm placeholder:text-zinc-600 py-2.5 px-1 resize-none h-10 sm:h-12 custom-scrollbar"
+                    className="flex-1 bg-transparent border-none focus:ring-0 text-white text-xs sm:text-sm placeholder:text-zinc-600 py-2 px-1 resize-none h-9 sm:h-12 custom-scrollbar min-w-0"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -1392,7 +1392,7 @@ function AppContent() {
                   <button 
                     onClick={generateVideo}
                     disabled={isGenerating || (!prompt && !image)}
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shrink-0
+                    className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shrink-0
                       ${isGenerating || (!prompt && !image) 
                         ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' 
                         : 'gradient-bg text-white hover:scale-105 active:scale-95 shadow-lg'}`}
@@ -1465,13 +1465,13 @@ function AppContent() {
                 )}
               </div>
 
-              <div className="p-4 sm:p-6 border-t border-white/5 space-y-3">
+              <div className="p-3 sm:p-6 border-t border-white/5 space-y-3">
                 {chatFile && (
                   <div className="relative inline-block">
                     <img 
                       src={chatFile} 
                       alt="Preview" 
-                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-white/10"
+                      className="w-14 h-14 sm:w-20 sm:h-20 object-cover rounded-xl border border-white/10"
                       referrerPolicy="no-referrer"
                     />
                     <button 
@@ -1482,7 +1482,7 @@ function AppContent() {
                     </button>
                   </div>
                 )}
-                <div className="flex gap-3 sm:gap-4">
+                <div className="flex gap-2 sm:gap-4">
                   <input 
                     type="file"
                     ref={chatFileInputRef}
@@ -1492,7 +1492,7 @@ function AppContent() {
                   />
                   <button 
                     onClick={() => chatFileInputRef.current?.click()}
-                    className="p-3 sm:p-4 glass rounded-xl sm:rounded-2xl hover:bg-white/10 transition-all text-zinc-400 hover:text-white"
+                    className="p-2.5 sm:p-4 glass rounded-xl sm:rounded-2xl hover:bg-white/10 transition-all text-zinc-400 hover:text-white shrink-0"
                   >
                     <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
@@ -1502,12 +1502,12 @@ function AppContent() {
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     placeholder="Ketik pesan..."
-                    className="flex-1 glass rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    className="flex-1 min-w-0 glass rounded-xl sm:rounded-2xl px-3 sm:px-6 py-2.5 sm:py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                   />
                   <button 
                     onClick={handleSendMessage}
                     disabled={isChatting || (!chatInput.trim() && !chatFile)}
-                    className="p-3 sm:p-4 gradient-bg rounded-xl sm:rounded-2xl hover:opacity-90 transition-all disabled:opacity-50"
+                    className="p-2.5 sm:p-4 gradient-bg rounded-xl sm:rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 shrink-0"
                   >
                     <Send className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
@@ -1525,25 +1525,25 @@ function AppContent() {
               className="flex-1 flex flex-col w-full max-w-4xl mx-auto gap-6 overflow-y-auto custom-scrollbar"
             >
               {/* Balance Card */}
-              <div className="glass rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 card-3d overflow-hidden relative group">
+              <div className="glass rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 card-3d overflow-hidden relative group">
                 <div className="absolute -right-10 -top-10 w-40 h-40 gradient-bg opacity-10 rounded-full blur-3xl group-hover:opacity-20 transition-opacity" />
                 <div className="space-y-1 relative z-10 text-center md:text-left">
                   <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-widest font-bold">Total Saldo Anda</p>
-                  <h2 className="text-4xl sm:text-5xl font-black tracking-tighter flex items-center justify-center md:justify-start gap-3 sm:gap-4">
+                  <h2 className="text-3xl sm:text-5xl font-black tracking-tighter flex items-center justify-center md:justify-start gap-2 sm:gap-4">
                     <span className="text-amber-400">Rp.</span>
                     {balance.toLocaleString('id-ID')}
                   </h2>
                 </div>
-                <div className="flex gap-3 relative z-10 w-full md:w-auto">
-                  <div className="flex-1 md:flex-none p-3 sm:p-4 glass rounded-xl sm:rounded-2xl flex flex-col items-center gap-1 min-w-[80px] sm:min-w-[100px]">
-                    <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400" />
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Invites</span>
-                    <span className="text-base sm:text-lg font-black">{inviteCount}</span>
+                <div className="flex gap-2 sm:gap-3 relative z-10 w-full md:w-auto">
+                  <div className="flex-1 md:flex-none p-2 sm:p-4 glass rounded-xl sm:rounded-2xl flex flex-col items-center gap-1 min-w-[70px] sm:min-w-[100px]">
+                    <UserPlus className="w-4 h-4 sm:w-6 sm:h-6 text-indigo-400" />
+                    <span className="text-[8px] sm:text-[10px] font-bold text-zinc-500 uppercase">Invites</span>
+                    <span className="text-sm sm:text-lg font-black">{inviteCount}</span>
                   </div>
-                  <div className="flex-1 md:flex-none p-3 sm:p-4 glass rounded-xl sm:rounded-2xl flex flex-col items-center gap-1 min-w-[80px] sm:min-w-[100px]">
-                    <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Target</span>
-                    <span className="text-base sm:text-lg font-black">50</span>
+                  <div className="flex-1 md:flex-none p-2 sm:p-4 glass rounded-xl sm:rounded-2xl flex flex-col items-center gap-1 min-w-[70px] sm:min-w-[100px]">
+                    <Trophy className="w-4 h-4 sm:w-6 sm:h-6 text-amber-400" />
+                    <span className="text-[8px] sm:text-[10px] font-bold text-zinc-500 uppercase">Target</span>
+                    <span className="text-sm sm:text-lg font-black">50</span>
                   </div>
                 </div>
               </div>
@@ -1691,19 +1691,19 @@ function AppContent() {
                   <p className="text-zinc-500 text-sm">Kelola seluruh aspek aplikasi ALTO.</p>
                 </div>
                 
-                <div className="flex items-center gap-2 p-1 glass rounded-2xl self-start">
+                <div className="flex items-center gap-1.5 sm:gap-2 p-1 glass rounded-2xl self-start overflow-x-auto max-w-full">
                   {adminTabs.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setAdminSubTab(tab.id as any)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap ${
                         adminSubTab === tab.id 
                           ? 'gradient-bg text-white shadow-lg' 
                           : 'text-zinc-500 hover:text-white hover:bg-white/5'
                       }`}
                     >
-                      <tab.icon className="w-4 h-4" />
-                      <span className="hidden sm:inline">{tab.id}</span>
+                      <tab.icon className="w-3.5 h-3.5 sm:w-4 h-4" />
+                      <span className="inline">{tab.id}</span>
                     </button>
                   ))}
                 </div>
@@ -2329,16 +2329,16 @@ function AppContent() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {PACKAGES.map((pkg) => (
-                  <div key={pkg.id} className="glass rounded-[2rem] p-8 flex flex-col gap-6 card-3d group relative overflow-hidden">
+                  <div key={pkg.id} className="glass rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-8 flex flex-col gap-5 sm:gap-6 card-3d group relative overflow-hidden">
                     <div className={`absolute -right-10 -top-10 w-32 h-32 ${pkg.bg} opacity-20 rounded-full blur-3xl group-hover:opacity-40 transition-opacity`} />
                     
-                    <div className="space-y-4 relative z-10">
-                      <div className={`w-14 h-14 rounded-2xl ${pkg.bg} ${pkg.color} flex items-center justify-center`}>
-                        <pkg.icon className="w-8 h-8" />
+                    <div className="space-y-3 sm:space-y-4 relative z-10">
+                      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl ${pkg.bg} ${pkg.color} flex items-center justify-center`}>
+                        <pkg.icon className="w-6 h-6 sm:w-8 sm:h-8" />
                       </div>
                       <div>
-                        <h3 className="text-2xl font-black tracking-tight">{pkg.name}</h3>
-                        <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">
+                        <h3 className="text-xl sm:text-2xl font-black tracking-tight">{pkg.name}</h3>
+                        <div className="flex items-center gap-2 text-zinc-500 text-[10px] sm:text-xs font-bold uppercase tracking-widest mt-1">
                           <Clock className="w-3 h-3" />
                           {pkg.duration}
                         </div>
@@ -2346,13 +2346,13 @@ function AppContent() {
                     </div>
 
                     <div className="space-y-2 relative z-10">
-                      <p className="text-xs text-zinc-400 leading-relaxed min-h-[3rem]">
+                      <p className="text-[10px] sm:text-xs text-zinc-400 leading-relaxed min-h-[2.5rem] sm:min-h-[3rem]">
                         {pkg.description}
                       </p>
                       <div className="pt-4 border-t border-white/5">
-                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Harga</p>
-                        <p className="text-3xl font-black text-white">
-                          <span className="text-sm font-bold text-amber-400 mr-1">Rp.</span>
+                        <p className="text-[8px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Harga</p>
+                        <p className="text-2xl sm:text-3xl font-black text-white">
+                          <span className="text-xs sm:text-sm font-bold text-amber-400 mr-1">Rp.</span>
                           {pkg.price.toLocaleString('id-ID')}
                         </p>
                       </div>
@@ -2363,7 +2363,7 @@ function AppContent() {
                         setSelectedPackage(pkg);
                         setShowCheckout(true);
                       }}
-                      className="w-full py-4 gradient-bg rounded-2xl font-bold text-sm tracking-widest hover:opacity-90 transition-all relative z-10"
+                      className="w-full py-3.5 sm:py-4 gradient-bg rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm tracking-widest hover:opacity-90 transition-all relative z-10"
                     >
                       BELI SEKARANG
                     </button>
@@ -2390,7 +2390,7 @@ function AppContent() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="glass w-full max-w-2xl rounded-[2.5rem] p-8 relative z-10 border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar"
+              className="glass w-full max-w-2xl rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 relative z-10 border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar"
             >
               <button 
                 onClick={() => setShowCheckout(false)}
@@ -2429,7 +2429,7 @@ function AppContent() {
 
                     <div className="space-y-3">
                       <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Metode Pembayaran</p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {[
                           { id: 'dana', label: 'DANA', icon: Wallet, color: 'text-emerald-400' },
                           { id: 'bank', label: 'BANK', icon: Building2, color: 'text-indigo-400' },
@@ -2438,14 +2438,14 @@ function AppContent() {
                           <button
                             key={method.id}
                             onClick={() => setPaymentMethod(method.id as any)}
-                            className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                            className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex flex-col items-center gap-2 ${
                               paymentMethod === method.id 
                                 ? 'bg-white/10 border-white/20' 
                                 : 'bg-transparent border-white/5 hover:border-white/10'
                             }`}
                           >
-                            <method.icon className={`w-6 h-6 ${method.id === paymentMethod ? method.color : 'text-zinc-500'}`} />
-                            <span className={`text-[10px] font-bold ${method.id === paymentMethod ? 'text-white' : 'text-zinc-500'}`}>{method.label}</span>
+                            <method.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${method.id === paymentMethod ? method.color : 'text-zinc-500'}`} />
+                            <span className={`text-[9px] sm:text-[10px] font-bold ${method.id === paymentMethod ? 'text-white' : 'text-zinc-500'}`}>{method.label}</span>
                           </button>
                         ))}
                       </div>
@@ -2551,7 +2551,7 @@ function AppContent() {
       </footer>
 
       {/* Bottom Navigation Bar (Floating) */}
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md flex justify-around items-center z-50 lg:hidden bg-transparent border-none">
+      <nav className="fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 w-[95%] sm:w-[90%] max-w-md flex justify-around items-center z-50 lg:hidden bg-black/20 backdrop-blur-lg rounded-3xl p-2 border border-white/5">
         {[
           { name: 'Chat', icon: MessageSquare },
           { name: 'Bonus', icon: Gift },
@@ -2565,12 +2565,12 @@ function AppContent() {
             onClick={() => handleTabChange(item.name)}
             className={`flex flex-col items-center gap-1 transition-all duration-300 ${
               activeTab === item.name 
-                ? 'text-indigo-400 scale-125 drop-shadow-[0_0_10px_rgba(129,140,248,0.5)]' 
+                ? 'text-indigo-400 scale-110 sm:scale-125 drop-shadow-[0_0_10px_rgba(129,140,248,0.5)]' 
                 : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <item.icon className={`w-6 h-6 ${activeTab === item.name ? 'animate-pulse' : ''}`} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">{item.name}</span>
+            <item.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${activeTab === item.name ? 'animate-pulse' : ''}`} />
+            <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider">{item.name}</span>
           </button>
         ))}
       </nav>
