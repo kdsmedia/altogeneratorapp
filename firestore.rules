@@ -113,7 +113,8 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
-    match /settings/global {
+    // Global Settings - Public Read
+    match /settings/{document} {
       allow read: if true;
       allow write: if isSuperAdmin() || isAdmin();
     }

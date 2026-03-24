@@ -382,8 +382,6 @@ function AppContent() {
       if (docSnap.exists()) {
         setAppSettings(docSnap.data());
       } else {
-        // Only attempt to initialize if we are sure we are the admin
-        // This prevents non-admins from triggering permission-denied errors
         const currentUser = auth.currentUser;
         if (currentUser && currentUser.email?.toLowerCase() === 'appsidhanie@gmail.com') {
           setDoc(settingsRef, {
