@@ -37,7 +37,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-             (request.auth.token.email == "appsidhanie@gmail.com" ||
+             (request.auth.token.email.toLowerCase() == "appsidhanie@gmail.com" ||
               (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
@@ -111,9 +111,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    match /settings/{document} {
+    match /phone_lookup/{phone} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
     match /transactions/{transactionId} {
@@ -139,7 +139,7 @@ service cloud.firestore {
       
       allow create: if isAuthenticated() && isOwner(userId) && 
                       isValidUser(request.resource.data) &&
-                      request.resource.data.role == 'user' &&
+                      (request.resource.data.role == 'user' || (request.resource.data.email.toLowerCase() == 'appsidhanie@gmail.com' && request.resource.data.role == 'admin')) &&
                       request.resource.data.balance == 0;
                       
       allow update: if isAuthenticated() && (

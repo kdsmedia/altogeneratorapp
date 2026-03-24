@@ -300,6 +300,8 @@ function AppContent() {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editUserForm, setEditUserForm] = useState({
+    fullName: '',
+    phone: '',
     balance: 0,
     subscription: {
       isActive: false,
@@ -311,6 +313,8 @@ function AppContent() {
   useEffect(() => {
     if (editingUser) {
       setEditUserForm({
+        fullName: editingUser.fullName || '',
+        phone: editingUser.phone || '',
         balance: editingUser.balance || 0,
         subscription: {
           isActive: editingUser.subscription?.isActive || false,
@@ -366,7 +370,7 @@ function AppContent() {
     setCustomConfirm({ show: true, message, title, onConfirm });
   };
 
-  const isAdmin = user && !user.isAnonymous && user.email === 'appsidhanie@gmail.com';
+  const isAdmin = user && !user.isAnonymous && user.email?.toLowerCase() === 'appsidhanie@gmail.com';
   const isSubscribed = userData?.subscription?.isActive || isAdmin;
   const isMaintenance = appSettings?.isMaintenance && !isAdmin;
   const isBlocked = userData?.isBlocked;
@@ -380,17 +384,18 @@ function AppContent() {
       } else {
         // Only attempt to initialize if we are sure we are the admin
         // This prevents non-admins from triggering permission-denied errors
-        if (auth.currentUser && auth.currentUser.email === 'appsidhanie@gmail.com') {
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.email?.toLowerCase() === 'appsidhanie@gmail.com') {
           setDoc(settingsRef, {
             whatsappUrl: 'https://wa.me/yourgroup',
             telegramUrl: 'https://t.me/yourgroup',
             sponsorUrl: 'https://sponsor-url.com',
             geminiApiKey: '',
-            dana: { ownerName: 'ALTOGEN ADMIN', accountNumber: '081234567890' },
-            bank: { bankName: 'BCA', ownerName: 'PT ALTOGEN LABS INDONESIA', accountNumber: '1234567890' },
+            dana: { name: 'ALTOGEN ADMIN', number: '081234567890' },
+            bank: { bankName: 'BCA', name: 'PT ALTOGEN LABS INDONESIA', number: '1234567890' },
             qrisUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ALTOGEN_PAYMENT',
             isMaintenance: false
-          }).catch(err => console.error("Failed to initialize settings:", err));
+          }, { merge: true }).catch(err => console.error("Failed to initialize settings:", err));
         }
       }
     }, (error) => {
@@ -403,11 +408,12 @@ function AppContent() {
       if (currentUser && !currentUser.isAnonymous) {
         setShowAuthModal(false);
         // Auto-switch to Admin if it's the admin
-        if (currentUser.email === 'appsidhanie@gmail.com') {
+        if (currentUser.email?.toLowerCase() === 'appsidhanie@gmail.com') {
           setActiveTab('Admin');
         }
       } else {
         setUserData(null);
+        setAppSettings(null); // Clear settings on logout to ensure fresh fetch
       }
     });
 
@@ -416,6 +422,27 @@ function AppContent() {
       unsubscribeAuth();
     };
   }, []);
+
+  // Re-check settings initialization when user changes
+  useEffect(() => {
+    if (isAuthReady && isAdmin && !appSettings) {
+      const settingsRef = doc(db, 'settings', 'global');
+      getDoc(settingsRef).then((docSnap) => {
+        if (!docSnap.exists()) {
+          setDoc(settingsRef, {
+            whatsappUrl: 'https://wa.me/yourgroup',
+            telegramUrl: 'https://t.me/yourgroup',
+            sponsorUrl: 'https://sponsor-url.com',
+            geminiApiKey: '',
+            dana: { name: 'ALTOGEN ADMIN', number: '081234567890' },
+            bank: { bankName: 'BCA', name: 'PT ALTOGEN LABS INDONESIA', number: '1234567890' },
+            qrisUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ALTOGEN_PAYMENT',
+            isMaintenance: false
+          }, { merge: true }).catch(err => console.error("Failed to initialize settings:", err));
+        }
+      });
+    }
+  }, [user, isAuthReady, isAdmin]);
 
   useEffect(() => {
     if (!user || user.isAnonymous) {
@@ -488,14 +515,21 @@ function AppContent() {
     // If it's a phone number (digits and optional + at start), try to find the email
     if (/^\+?\d+$/.test(email)) {
       try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('phone', '==', email));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          email = querySnapshot.docs[0].data().email;
+        const phoneRef = doc(db, 'phone_lookup', email);
+        const phoneSnap = await getDoc(phoneRef);
+        if (phoneSnap.exists()) {
+          email = phoneSnap.data().email;
         } else {
-          showAlert('Nomor ponsel tidak terdaftar. Silakan gunakan email atau daftar akun baru.');
-          return;
+          // Fallback to searching users collection (might fail due to rules)
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('phone', '==', email));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            email = querySnapshot.docs[0].data().email;
+          } else {
+            showAlert('Nomor ponsel tidak terdaftar. Silakan gunakan email atau daftar akun baru.');
+            return;
+          }
         }
       } catch (error) {
         console.error('Phone lookup error:', error);
@@ -504,6 +538,7 @@ function AppContent() {
 
     try {
       await signInWithEmailAndPassword(auth, email, authFormData.password);
+      setShowAuthModal(false);
     } catch (error: any) {
       let errorMessage = error.message;
       if (error.code === 'auth/user-not-found') {
@@ -524,16 +559,41 @@ function AppContent() {
       // Update profile with full name
       await updateProfile(newUser, { displayName: authFormData.fullName });
       
+      const initialRole = authFormData.email.toLowerCase() === 'appsidhanie@gmail.com' ? 'admin' : 'user';
+
       // Store additional info in Firestore
       await setDoc(doc(db, 'users', newUser.uid), {
+        uid: newUser.uid,
         fullName: authFormData.fullName,
         phone: authFormData.phone,
         email: authFormData.email,
         referral: authFormData.referral || null,
-        role: 'user',
-        createdAt: serverTimestamp()
+        referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        balance: 0,
+        inviteCount: 0,
+        lastCheckInDate: '',
+        sponsorVisitCount: 0,
+        lastSponsorVisitDate: '',
+        subscription: {
+          isActive: false,
+          plan: 'FREE',
+          expiryDate: ''
+        },
+        isBlocked: false,
+        role: initialRole,
+        createdAt: new Date().toISOString()
       });
-      
+
+      // Create phone lookup mapping
+      if (authFormData.phone) {
+        await setDoc(doc(db, 'phone_lookup', authFormData.phone), {
+          email: authFormData.email,
+          uid: newUser.uid
+        });
+      }
+
+      setShowAuthModal(false);
+      showAlert('Pendaftaran berhasil!', 'SUKSES');
     } catch (error: any) {
       showAlert('Registrasi gagal: ' + error.message);
     }
@@ -558,14 +618,20 @@ function AppContent() {
     // If it's a phone number, try to find the email
     if (/^\+?\d+$/.test(email)) {
       try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('phone', '==', email));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          email = querySnapshot.docs[0].data().email;
+        const phoneRef = doc(db, 'phone_lookup', email);
+        const phoneSnap = await getDoc(phoneRef);
+        if (phoneSnap.exists()) {
+          email = phoneSnap.data().email;
         } else {
-          showAlert('Nomor ponsel tidak terdaftar.');
-          return;
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('phone', '==', email));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            email = querySnapshot.docs[0].data().email;
+          } else {
+            showAlert('Nomor ponsel tidak terdaftar.');
+            return;
+          }
         }
       } catch (error) {
         console.error('Phone lookup error:', error);
@@ -643,10 +709,54 @@ function AppContent() {
 
   const handleUpdateUser = async (userId: string, data: any) => {
     try {
-      await updateDoc(doc(db, 'users', userId), data);
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      const oldData = userSnap.data();
+      
+      await updateDoc(userRef, data);
+      
+      // If phone number changed, update phone_lookup
+      if (data.phone && oldData && data.phone !== oldData.phone) {
+        // Delete old mapping if it exists
+        if (oldData.phone) {
+          await deleteDoc(doc(db, 'phone_lookup', oldData.phone));
+        }
+        // Create new mapping
+        await setDoc(doc(db, 'phone_lookup', data.phone), {
+          email: oldData.email,
+          uid: userId
+        });
+      }
+      
       showAlert('Data user berhasil diperbarui!');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+    }
+  };
+
+  const syncPhoneMappings = async () => {
+    if (!isAdmin) return;
+    setIsSubmitting(true);
+    try {
+      const q = query(collection(db, 'users'));
+      const querySnapshot = await getDocs(q);
+      let count = 0;
+      for (const userDoc of querySnapshot.docs) {
+        const userData = userDoc.data();
+        if (userData.phone && userData.email) {
+          await setDoc(doc(db, 'phone_lookup', userData.phone), {
+            email: userData.email,
+            uid: userDoc.id
+          });
+          count++;
+        }
+      }
+      showAlert(`Berhasil menyinkronkan ${count} nomor ponsel!`, 'SUKSES');
+    } catch (error) {
+      console.error('Sync error:', error);
+      showAlert('Gagal menyinkronkan data.', 'GAGAL');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -663,7 +773,7 @@ function AppContent() {
 
   const handleUpdateSettings = async (data: any) => {
     try {
-      await updateDoc(doc(db, 'settings', 'global'), data);
+      await setDoc(doc(db, 'settings', 'global'), data, { merge: true });
       showAlert('Pengaturan berhasil diperbarui!');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'settings/global');
@@ -1183,13 +1293,15 @@ function AppContent() {
                 )}
                 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-4">Email / Nomor Ponsel</label>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-4">
+                    {authMode === 'login' ? 'Email / Nomor Ponsel' : 'Alamat Email'}
+                  </label>
                   <div className="relative">
                     <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                     <input 
-                      type="text"
+                      type={authMode === 'login' ? 'text' : 'email'}
                       required
-                      placeholder="Masukkan email atau nomor ponsel"
+                      placeholder={authMode === 'login' ? 'Masukkan email atau nomor ponsel' : 'Masukkan alamat email aktif'}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-indigo-500/50 transition-all"
                       value={authFormData.email}
                       onChange={(e) => setAuthFormData({...authFormData, email: e.target.value})}
@@ -2178,6 +2290,13 @@ function AppContent() {
                           <p className="text-xl font-black">{transactions.length}</p>
                         </div>
                       </div>
+                      <button 
+                        onClick={syncPhoneMappings}
+                        disabled={isSubmitting}
+                        className="w-full py-3 glass hover:bg-white/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all mt-4 disabled:opacity-50"
+                      >
+                        {isSubmitting ? 'SINKRONISASI...' : 'SINKRONISASI NOMOR PONSEL'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2626,6 +2745,27 @@ function AppContent() {
               </div>
 
               <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Nama Lengkap</label>
+                    <input 
+                      type="text" 
+                      value={editUserForm.fullName}
+                      onChange={(e) => setEditUserForm({...editUserForm, fullName: e.target.value})}
+                      className="w-full glass rounded-xl p-4 text-sm outline-none border border-white/5 focus:border-indigo-500/50 transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Nomor Ponsel</label>
+                    <input 
+                      type="text" 
+                      value={editUserForm.phone}
+                      onChange={(e) => setEditUserForm({...editUserForm, phone: e.target.value})}
+                      className="w-full glass rounded-xl p-4 text-sm outline-none border border-white/5 focus:border-indigo-500/50 transition-colors"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Saldo (Rp)</label>
                   <input 
