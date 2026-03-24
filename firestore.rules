@@ -107,7 +107,12 @@ service cloud.firestore {
     // ===============================================================
 
     match /settings/global {
-      allow read: if true; // Everyone needs to check maintenance mode
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{document} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 

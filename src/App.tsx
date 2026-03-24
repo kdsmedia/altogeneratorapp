@@ -263,7 +263,9 @@ function AppContent() {
 
   // Chat State
   const [chatInput, setChatInput] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'alto', text: string }[]>([
+  const [chatFile, setChatFile] = useState<string | null>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
+  const [messages, setMessages] = useState<{ role: 'user' | 'alto', text: string, image?: string }[]>([
     { role: 'alto', text: 'Halo! Saya ALTO, asisten AI kreatif Anda. Ada yang bisa saya bantu hari ini?' }
   ]);
   const [isChatting, setIsChatting] = useState(false);
@@ -338,21 +340,24 @@ function AppContent() {
   useEffect(() => {
     // Fetch global settings
     const settingsRef = doc(db, 'settings', 'global');
-    const unsubscribeSettings = onSnapshot(settingsRef, (doc) => {
-      if (doc.exists()) {
-        setAppSettings(doc.data());
+    const unsubscribeSettings = onSnapshot(settingsRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setAppSettings(docSnap.data());
       } else {
-        // Initialize default settings if not exists
-        setDoc(settingsRef, {
-          whatsappUrl: 'https://wa.me/yourgroup',
-          telegramUrl: 'https://t.me/yourgroup',
-          sponsorUrl: 'https://sponsor-url.com',
-          geminiApiKey: '',
-          dana: { ownerName: 'ALTOGEN ADMIN', accountNumber: '081234567890' },
-          bank: { bankName: 'BCA', ownerName: 'PT ALTOGEN LABS INDONESIA', accountNumber: '1234567890' },
-          qrisUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ALTOGEN_PAYMENT',
-          isMaintenance: false
-        });
+        // Only attempt to initialize if we are sure we are the admin
+        // This prevents non-admins from triggering permission-denied errors
+        if (auth.currentUser && auth.currentUser.email === 'appsidhanie@gmail.com') {
+          setDoc(settingsRef, {
+            whatsappUrl: 'https://wa.me/yourgroup',
+            telegramUrl: 'https://t.me/yourgroup',
+            sponsorUrl: 'https://sponsor-url.com',
+            geminiApiKey: '',
+            dana: { ownerName: 'ALTOGEN ADMIN', accountNumber: '081234567890' },
+            bank: { bankName: 'BCA', ownerName: 'PT ALTOGEN LABS INDONESIA', accountNumber: '1234567890' },
+            qrisUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ALTOGEN_PAYMENT',
+            isMaintenance: false
+          }).catch(err => console.error("Failed to initialize settings:", err));
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'settings/global');
@@ -765,57 +770,94 @@ function AppContent() {
     }
   };
 
+  const handleChatFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setChatFile(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() && !chatFile) return;
     
     const userMsg = chatInput;
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    const userFile = chatFile;
+    setMessages(prev => [...prev, { role: 'user', text: userMsg, image: userFile || undefined }]);
     setChatInput('');
+    setChatFile(null);
     setIsChatting(true);
 
     try {
       const apiKey = appSettings?.geminiApiKey || process.env.GEMINI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
       
-      // Check if user is asking for image generation
-      const isImageRequest = userMsg.toLowerCase().includes('buatkan gambar') || 
-                            userMsg.toLowerCase().includes('generate image') ||
-                            userMsg.toLowerCase().includes('gambar');
-
-      if (isImageRequest) {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash-image",
-          contents: userMsg,
-          config: {
-            imageConfig: {
-              aspectRatio: "1:1",
-            }
-          }
-        });
-
-        let foundImage = false;
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            const base64Data = part.inlineData.data;
-            const imageUrl = `data:image/png;base64,${base64Data}`;
-            setMessages(prev => [...prev, { role: 'alto', text: `Berikut adalah gambar yang Anda minta:\n![Generated Image](${imageUrl})` }]);
-            foundImage = true;
-            break;
-          }
-        }
-        if (!foundImage) {
-          setMessages(prev => [...prev, { role: 'alto', text: response.text || 'Maaf, saya tidak bisa membuat gambar saat ini.' }]);
-        }
-      } else {
+      if (userFile) {
+        // Multimodal request
+        const base64Data = userFile.split(',')[1];
+        const mimeType = userFile.split(';')[0].split(':')[1];
+        
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
-          contents: userMsg,
+          contents: [
+            {
+              parts: [
+                { inlineData: { data: base64Data, mimeType } },
+                { text: userMsg || "Apa yang ada di gambar ini?" }
+              ]
+            }
+          ],
           config: {
-            systemInstruction: "Anda adalah ALTO, asisten AI interaktif yang ramah, kreatif, dan cerdas. Anda membantu pengguna dengan pertanyaan mereka, memberikan inspirasi kreatif, dan selalu memberikan jawaban yang informatif namun ringkas dalam bahasa Indonesia. Anda juga memiliki kemampuan untuk membuat gambar jika diminta.",
+            systemInstruction: "Anda adalah ALTO, asisten AI interaktif yang ramah, kreatif, dan cerdas. Anda membantu pengguna dengan pertanyaan mereka, memberikan inspirasi kreatif, dan selalu memberikan jawaban yang informatif namun ringkas dalam bahasa Indonesia. Anda juga memiliki kemampuan untuk menganalisis gambar yang diunggah pengguna.",
           },
         });
         
         setMessages(prev => [...prev, { role: 'alto', text: response.text || 'Maaf, saya tidak bisa merespons saat ini.' }]);
+      } else {
+        // Text-only request
+        // Check if user is asking for image generation
+        const isImageRequest = userMsg.toLowerCase().includes('buatkan gambar') || 
+                              userMsg.toLowerCase().includes('generate image') ||
+                              userMsg.toLowerCase().includes('gambar');
+
+        if (isImageRequest) {
+          const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-image",
+            contents: userMsg,
+            config: {
+              imageConfig: {
+                aspectRatio: "1:1",
+              }
+            }
+          });
+
+          let foundImage = false;
+          for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+              const base64Data = part.inlineData.data;
+              const imageUrl = `data:image/png;base64,${base64Data}`;
+              setMessages(prev => [...prev, { role: 'alto', text: `Berikut adalah gambar yang Anda minta:\n![Generated Image](${imageUrl})` }]);
+              foundImage = true;
+              break;
+            }
+          }
+          if (!foundImage) {
+            setMessages(prev => [...prev, { role: 'alto', text: response.text || 'Maaf, saya tidak bisa membuat gambar saat ini.' }]);
+          }
+        } else {
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: userMsg,
+            config: {
+              systemInstruction: "Anda adalah ALTO, asisten AI interaktif yang ramah, kreatif, dan cerdas. Anda membantu pengguna dengan pertanyaan mereka, memberikan inspirasi kreatif, dan selalu memberikan jawaban yang informatif namun ringkas dalam bahasa Indonesia. Anda juga memiliki kemampuan untuk membuat gambar jika diminta.",
+            },
+          });
+          
+          setMessages(prev => [...prev, { role: 'alto', text: response.text || 'Maaf, saya tidak bisa merespons saat ini.' }]);
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -1400,7 +1442,15 @@ function AppContent() {
                         ? 'gradient-bg text-white rounded-tr-none' 
                         : 'glass text-zinc-200 rounded-tl-none'
                     }`}>
-                      <p className="text-xs sm:text-sm leading-relaxed">{msg.text}</p>
+                      {msg.image && (
+                        <img 
+                          src={msg.image} 
+                          alt="Uploaded" 
+                          className="w-full max-w-[200px] sm:max-w-[300px] rounded-xl mb-2 border border-white/10"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                      <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -1415,22 +1465,53 @@ function AppContent() {
                 )}
               </div>
 
-              <div className="p-4 sm:p-6 border-t border-white/5 flex gap-3 sm:gap-4">
-                <input 
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Ketik pesan..."
-                  className="flex-1 glass rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                />
-                <button 
-                  onClick={handleSendMessage}
-                  disabled={isChatting || !chatInput.trim()}
-                  className="p-3 sm:p-4 gradient-bg rounded-xl sm:rounded-2xl hover:opacity-90 transition-all disabled:opacity-50"
-                >
-                  <Send className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
+              <div className="p-4 sm:p-6 border-t border-white/5 space-y-3">
+                {chatFile && (
+                  <div className="relative inline-block">
+                    <img 
+                      src={chatFile} 
+                      alt="Preview" 
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-white/10"
+                      referrerPolicy="no-referrer"
+                    />
+                    <button 
+                      onClick={() => setChatFile(null)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex gap-3 sm:gap-4">
+                  <input 
+                    type="file"
+                    ref={chatFileInputRef}
+                    onChange={handleChatFileUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button 
+                    onClick={() => chatFileInputRef.current?.click()}
+                    className="p-3 sm:p-4 glass rounded-xl sm:rounded-2xl hover:bg-white/10 transition-all text-zinc-400 hover:text-white"
+                  >
+                    <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+                  <input 
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder="Ketik pesan..."
+                    className="flex-1 glass rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                  <button 
+                    onClick={handleSendMessage}
+                    disabled={isChatting || (!chatInput.trim() && !chatFile)}
+                    className="p-3 sm:p-4 gradient-bg rounded-xl sm:rounded-2xl hover:opacity-90 transition-all disabled:opacity-50"
+                  >
+                    <Send className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
