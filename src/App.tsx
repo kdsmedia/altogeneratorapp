@@ -297,6 +297,40 @@ function AppContent() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [appSettings, setAppSettings] = useState<any>(null);
   const [adminSubTab, setAdminSubTab] = useState<'Transaksi' | 'User' | 'Settings' | 'Rekening' | 'Aplikasi'>('Transaksi');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editUserForm, setEditUserForm] = useState({
+    balance: 0,
+    subscription: {
+      isActive: false,
+      plan: 'FREE',
+      expiryDate: ''
+    }
+  });
+
+  useEffect(() => {
+    if (editingUser) {
+      setEditUserForm({
+        balance: editingUser.balance || 0,
+        subscription: {
+          isActive: editingUser.subscription?.isActive || false,
+          plan: editingUser.subscription?.plan || 'FREE',
+          expiryDate: editingUser.subscription?.expiryDate || ''
+        }
+      });
+    }
+  }, [editingUser]);
+
+  const handleSaveUserEdit = async () => {
+    if (!editingUser) return;
+    try {
+      await handleUpdateUser(editingUser.id, editUserForm);
+      setEditingUser(null);
+    } catch (error) {
+      console.error('Error saving user edit:', error);
+    }
+  };
+
   const adminTabs = [
     { id: 'Transaksi', icon: CreditCard },
     { id: 'User', icon: Users },
@@ -1809,7 +1843,13 @@ function AppContent() {
                     <div className="flex items-center gap-2">
                       <div className="glass rounded-xl px-3 py-1 flex items-center gap-2">
                         <Search className="w-3 h-3 text-zinc-500" />
-                        <input type="text" placeholder="Cari user..." className="bg-transparent border-none outline-none text-xs w-32" />
+                        <input 
+                          type="text" 
+                          placeholder="Cari user..." 
+                          className="bg-transparent border-none outline-none text-xs w-32"
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                        />
                       </div>
                       <button onClick={fetchUsers} className="p-2 glass rounded-lg hover:bg-white/10 transition-colors">
                         <RefreshCw className="w-4 h-4" />
@@ -1828,7 +1868,13 @@ function AppContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
-                        {usersList.map((u) => (
+                        {usersList
+                          .filter(u => 
+                            u.fullName?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+                            u.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                            u.uid?.toLowerCase().includes(userSearchQuery.toLowerCase())
+                          )
+                          .map((u) => (
                           <tr key={u.id} className="hover:bg-white/[0.02] transition-colors group">
                             <td className="p-6">
                               <div className="flex items-center gap-3">
@@ -1862,36 +1908,11 @@ function AppContent() {
                             <td className="p-6 text-right">
                               <div className="flex justify-end gap-2">
                                 <button 
-                                  onClick={() => {
-                                    const newBalance = prompt('Masukkan saldo baru:', u.balance?.toString());
-                                    if (newBalance !== null) handleUpdateUser(u.id, { balance: parseInt(newBalance) });
-                                  }}
+                                  onClick={() => setEditingUser(u)}
                                   className="w-8 h-8 rounded-lg glass text-zinc-400 flex items-center justify-center hover:text-white transition-all"
-                                  title="Edit Saldo"
+                                  title="Edit User"
                                 >
                                   <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    const plan = prompt('Masukkan nama paket (VIP 1, VIP 2, VIP 3):', u.subscription?.plan || '');
-                                    const duration = prompt('Masukkan durasi (7 Hari, 30 Hari, 365 Hari):', '30 Hari');
-                                    if (plan && duration) {
-                                      const days = parseInt(duration.split(' ')[0]);
-                                      const expiryDate = new Date();
-                                      expiryDate.setDate(expiryDate.getDate() + days);
-                                      handleUpdateUser(u.id, { 
-                                        subscription: { 
-                                          isActive: true, 
-                                          plan, 
-                                          expiryDate: expiryDate.toISOString() 
-                                        } 
-                                      });
-                                    }
-                                  }}
-                                  className="w-8 h-8 rounded-lg glass text-zinc-400 flex items-center justify-center hover:text-white transition-all"
-                                  title="Edit Paket"
-                                >
-                                  <Zap className="w-4 h-4" />
                                 </button>
                                 <button 
                                   onClick={() => handleUpdateUser(u.id, { isBlocked: !u.isBlocked })}
@@ -1933,7 +1954,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.whatsappUrl || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, whatsappUrl: e.target.value })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, whatsappUrl: e.target.value }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
                         />
                       </div>
@@ -1942,7 +1963,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.telegramUrl || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, telegramUrl: e.target.value })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, telegramUrl: e.target.value }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
                         />
                       </div>
@@ -1951,16 +1972,16 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.sponsorUrl || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, sponsorUrl: e.target.value })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, sponsorUrl: e.target.value }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none transition-all"
                         />
                       </div>
                     </div>
                     <button 
                       onClick={() => handleUpdateSettings({ 
-                        whatsappUrl: appSettings.whatsappUrl,
-                        telegramUrl: appSettings.telegramUrl,
-                        sponsorUrl: appSettings.sponsorUrl
+                        whatsappUrl: appSettings?.whatsappUrl,
+                        telegramUrl: appSettings?.telegramUrl,
+                        sponsorUrl: appSettings?.sponsorUrl
                       })}
                       className="w-full py-4 gradient-bg rounded-2xl font-bold text-sm tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2"
                     >
@@ -1983,7 +2004,7 @@ function AppContent() {
                           <input 
                             type="password" 
                             value={appSettings?.geminiApiKey || ''} 
-                            onChange={(e) => setAppSettings({ ...appSettings, geminiApiKey: e.target.value })}
+                            onChange={(e) => setAppSettings((prev: any) => ({ ...prev, geminiApiKey: e.target.value }))}
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none transition-all pr-12"
                           />
                           <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600">
@@ -1994,7 +2015,7 @@ function AppContent() {
                       </div>
                     </div>
                     <button 
-                      onClick={() => handleUpdateSettings({ geminiApiKey: appSettings.geminiApiKey })}
+                      onClick={() => handleUpdateSettings({ geminiApiKey: appSettings?.geminiApiKey })}
                       className="w-full py-4 glass hover:bg-white/10 rounded-2xl font-bold text-sm tracking-widest transition-all flex items-center justify-center gap-2"
                     >
                       <Save className="w-4 h-4" />
@@ -2021,7 +2042,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.dana?.name || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, dana: { ...appSettings.dana, name: e.target.value } })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, dana: { ...prev?.dana, name: e.target.value } }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none"
                         />
                       </div>
@@ -2030,7 +2051,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.dana?.number || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, dana: { ...appSettings.dana, number: e.target.value } })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, dana: { ...prev?.dana, number: e.target.value } }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none"
                         />
                       </div>
@@ -2051,7 +2072,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.bank?.bankName || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, bank: { ...appSettings.bank, bankName: e.target.value } })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, bank: { ...prev?.bank, bankName: e.target.value } }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none"
                         />
                       </div>
@@ -2060,7 +2081,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.bank?.name || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, bank: { ...appSettings.bank, name: e.target.value } })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, bank: { ...prev?.bank, name: e.target.value } }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none"
                         />
                       </div>
@@ -2069,7 +2090,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.bank?.number || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, bank: { ...appSettings.bank, number: e.target.value } })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, bank: { ...prev?.bank, number: e.target.value } }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none"
                         />
                       </div>
@@ -2090,7 +2111,7 @@ function AppContent() {
                         <input 
                           type="text" 
                           value={appSettings?.qrisUrl || ''} 
-                          onChange={(e) => setAppSettings({ ...appSettings, qrisUrl: e.target.value })}
+                          onChange={(e) => setAppSettings((prev: any) => ({ ...prev, qrisUrl: e.target.value }))}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none"
                         />
                       </div>
@@ -2105,9 +2126,9 @@ function AppContent() {
                   <div className="md:col-span-3">
                     <button 
                       onClick={() => handleUpdateSettings({ 
-                        dana: appSettings.dana,
-                        bank: appSettings.bank,
-                        qrisUrl: appSettings.qrisUrl
+                        dana: appSettings?.dana,
+                        bank: appSettings?.bank,
+                        qrisUrl: appSettings?.qrisUrl
                       })}
                       className="w-full py-4 gradient-bg rounded-2xl font-bold text-sm tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2"
                     >
@@ -2574,6 +2595,113 @@ function AppContent() {
           </button>
         ))}
       </nav>
+
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {editingUser && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingUser(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md glass rounded-[2.5rem] p-8 border border-white/10 overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 gradient-bg" />
+              
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Edit2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black tracking-tighter uppercase">Edit User</h2>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{editingUser.email}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Saldo (Rp)</label>
+                  <input 
+                    type="number" 
+                    value={editUserForm.balance}
+                    onChange={(e) => setEditUserForm({...editUserForm, balance: parseInt(e.target.value) || 0})}
+                    className="w-full glass rounded-xl p-4 text-sm outline-none border border-white/5 focus:border-indigo-500/50 transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-4 p-6 glass rounded-2xl border border-white/5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Status VIP</label>
+                    <button 
+                      onClick={() => setEditUserForm({
+                        ...editUserForm, 
+                        subscription: { ...editUserForm.subscription, isActive: !editUserForm.subscription.isActive }
+                      })}
+                      className={`w-12 h-6 rounded-full relative transition-all ${editUserForm.subscription.isActive ? 'bg-emerald-500' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${editUserForm.subscription.isActive ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+
+                  {editUserForm.subscription.isActive && (
+                    <div className="space-y-4 pt-4 border-t border-white/5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Paket</label>
+                        <select 
+                          value={editUserForm.subscription.plan}
+                          onChange={(e) => setEditUserForm({
+                            ...editUserForm, 
+                            subscription: { ...editUserForm.subscription, plan: e.target.value }
+                          })}
+                          className="w-full glass rounded-xl p-4 text-sm outline-none border border-white/5 focus:border-indigo-500/50 transition-colors appearance-none"
+                        >
+                          <option value="VIP 1" className="bg-zinc-900">VIP 1</option>
+                          <option value="VIP 2" className="bg-zinc-900">VIP 2</option>
+                          <option value="VIP 3" className="bg-zinc-900">VIP 3</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Tanggal Kadaluarsa</label>
+                        <input 
+                          type="date" 
+                          value={editUserForm.subscription.expiryDate ? editUserForm.subscription.expiryDate.split('T')[0] : ''}
+                          onChange={(e) => setEditUserForm({
+                            ...editUserForm, 
+                            subscription: { ...editUserForm.subscription, expiryDate: new Date(e.target.value).toISOString() }
+                          })}
+                          className="w-full glass rounded-xl p-4 text-sm outline-none border border-white/5 focus:border-indigo-500/50 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-8">
+                <button 
+                  onClick={() => setEditingUser(null)}
+                  className="py-4 glass rounded-2xl font-bold text-sm tracking-widest hover:bg-white/5 transition-all"
+                >
+                  BATAL
+                </button>
+                <button 
+                  onClick={handleSaveUserEdit}
+                  className="py-4 gradient-bg rounded-2xl font-bold text-sm tracking-widest hover:opacity-90 transition-all shadow-[0_10px_20px_rgba(129,140,248,0.3)]"
+                >
+                  SIMPAN
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Custom Alert Modal */}
       <AnimatePresence>
