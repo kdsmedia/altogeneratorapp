@@ -35,17 +35,24 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+             (("email" in request.auth.token && request.auth.token.email == "appsidhanie@gmail.com") ||
+              request.auth.uid == "I0aBxIulG7Pq6XcNDpxdQmGBzXj2");
+    }
+
     function isAdmin() {
-      return isAuthenticated() &&
-             (request.auth.token.email.toLowerCase() == "appsidhanie@gmail.com" ||
-              (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      return isSuperAdmin() || 
+             (isAuthenticated() && 
+              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
     function isNotBlocked() {
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      return isAuthenticated() &&
-             (!exists(userPath) || get(userPath).data.isBlocked == false);
+      return isSuperAdmin() || 
+             (isAuthenticated() && 
+              (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) || 
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked != true));
     }
 
     function isValidEmail(email) {
@@ -108,7 +115,7 @@ service cloud.firestore {
 
     match /settings/global {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSuperAdmin() || isAdmin();
     }
 
     match /phone_lookup/{phone} {
@@ -118,7 +125,8 @@ service cloud.firestore {
 
     match /transactions/{transactionId} {
       // Users can read their own transactions, admins can read all
-      allow read: if isAuthenticated() && isNotBlocked() && (isOwner(resource.data.userId) || isAdmin());
+      allow get: if isAuthenticated() && (isSuperAdmin() || (isNotBlocked() && (isOwner(resource.data.userId) || isAdmin())));
+      allow list: if isAuthenticated() && (isSuperAdmin() || (isNotBlocked() && isAdmin()));
       
       // Users can create transactions with 'pending' status
       allow create: if isAuthenticated() && isNotBlocked() &&
@@ -127,22 +135,25 @@ service cloud.firestore {
       
       // Admins can update status, users cannot update anything once submitted
       allow update: if isAuthenticated() && 
-                      isAdmin() && 
+                      (isSuperAdmin() || isAdmin()) && 
                       isValidTransaction(request.resource.data);
       
       // Admins can delete transactions
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin() || isAdmin();
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow get: if isAuthenticated() && (isSuperAdmin() || isOwner(userId) || isAdmin());
+      allow list: if isAuthenticated() && (isSuperAdmin() || isAdmin());
       
-      allow create: if isAuthenticated() && isOwner(userId) && 
+      allow create: if isAuthenticated() && (isSuperAdmin() || isOwner(userId)) && 
                       isValidUser(request.resource.data) &&
-                      (request.resource.data.role == 'user' || (request.resource.data.email.toLowerCase() == 'appsidhanie@gmail.com' && request.resource.data.role == 'admin')) &&
-                      request.resource.data.balance == 0;
-                      
+                      (request.resource.data.role == 'user' || (isSuperAdmin() && request.resource.data.role == 'admin')) &&
+                      (isSuperAdmin() || request.resource.data.balance == 0);
+                       
       allow update: if isAuthenticated() && (
+                      isSuperAdmin() ||
+                      isAdmin() ||
                       (isOwner(userId) && isNotBlocked() &&
                        isValidUser(request.resource.data) &&
                        request.resource.data.role == resource.data.role && // Prevent role escalation
@@ -150,11 +161,10 @@ service cloud.firestore {
                         (request.resource.data.balance == resource.data.balance + 50 && request.resource.data.lastCheckInDate != resource.data.lastCheckInDate) || // Check-in
                         (request.resource.data.balance == resource.data.balance + 100 && request.resource.data.sponsorVisitCount == resource.data.sponsorVisitCount + 1) || // Sponsor Visit
                         (request.resource.data.balance == resource.data.balance + 500 && request.resource.data.inviteCount == resource.data.inviteCount + 1) // Invite
-                       )) ||
-                      isAdmin()
+                       ))
                     );
                     
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin() || isAdmin();
     }
 
     // Default deny
