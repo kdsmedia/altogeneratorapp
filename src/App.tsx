@@ -503,8 +503,9 @@ function AppContent() {
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      showAlert(`Login Google gagal: ${error.message}`, 'GAGAL');
     }
   };
 
