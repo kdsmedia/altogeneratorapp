@@ -381,23 +381,11 @@ function AppContent() {
     const unsubscribeSettings = onSnapshot(settingsRef, (docSnap) => {
       if (docSnap.exists()) {
         setAppSettings(docSnap.data());
-      } else {
-        const currentUser = auth.currentUser;
-        if (currentUser && currentUser.email?.toLowerCase() === 'appsidhanie@gmail.com') {
-          setDoc(settingsRef, {
-            whatsappUrl: 'https://wa.me/yourgroup',
-            telegramUrl: 'https://t.me/yourgroup',
-            sponsorUrl: 'https://sponsor-url.com',
-            geminiApiKey: '',
-            dana: { name: 'ALTOGEN ADMIN', number: '081234567890' },
-            bank: { bankName: 'BCA', name: 'PT ALTOGEN LABS INDONESIA', number: '1234567890' },
-            qrisUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ALTOGEN_PAYMENT',
-            isMaintenance: false
-          }, { merge: true }).catch(err => console.error("Failed to initialize settings:", err));
-        }
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/global');
+      // Silently handle initial permission errors for settings
+      // This happens before login or if domain is not yet authorized
+      console.warn("Settings fetch deferred until auth/domain is ready.");
     });
 
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -602,8 +590,9 @@ function AppContent() {
     try {
       await signInAnonymously(auth);
       setShowAuthModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Guest login error:', error);
+      showAlert(`Login Guest gagal: ${error.message}`, 'GAGAL');
     }
   };
 
